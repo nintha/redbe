@@ -23,6 +23,8 @@ class MainScreen : View(REDBE.PROJECT_NAME.toUpperCase()) {
     private val keyRoot = KeyNode("", "", "", listOf(), KeyKind.Normal)
 
     private val selectedKeyProp = SimpleStringProperty("")
+    private val selectedKeyTTL = SimpleStringProperty("-1")
+    private val selectedKeyType = SimpleStringProperty("")
 
     init {
         primaryStage.onCloseRequest = EventHandler {
@@ -60,7 +62,9 @@ class MainScreen : View(REDBE.PROJECT_NAME.toUpperCase()) {
                     if (it.kind == KeyKind.Normal) return@onUserSelect
 
                     selectedKeyProp.value = it.fullName
-                    logger().info("select key > ${it.fullName}")
+                    selectedKeyTTL.value = getTtl(it.fullName).toString()
+
+                    logger().info("select key > ${it.fullName}, ttl=${selectedKeyTTL.value}")
                 }
 
                 populate { parent ->
@@ -86,6 +90,16 @@ class MainScreen : View(REDBE.PROJECT_NAME.toUpperCase()) {
                 }
             }
 
+            hbox {
+                label("TTL: ")
+                text(selectedKeyTTL)
+
+                vboxConstraints {
+                    marginLeft = 10.0
+                    marginTop = 10.0
+                    vGrow = Priority.ALWAYS
+                }
+            }
         }
     }
 
@@ -116,9 +130,13 @@ class MainScreen : View(REDBE.PROJECT_NAME.toUpperCase()) {
         logger().info("load keys > ${keys.values.flatten().size}")
     }
 
-    private fun stringValue(key: String): String {
-        val future = Future.future<String>()
-        client.get(key, future)
+    private fun getTtl(key: String): Long {
+        return runAwait { future -> client.ttl(key, future) }
+    }
+
+    private fun <T> runAwait(fn: (Future<T>) -> Unit): T {
+        val future = Future.future<T>()
+        fn(future)
         return runBlocking { future.await() }
     }
 
